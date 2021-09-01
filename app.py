@@ -1,4 +1,5 @@
 # Zoe Strachan, Group 2
+
 from flask import Flask, request, jsonify
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_cors import CORS
@@ -40,7 +41,6 @@ def init_users_table():
                  "username TEXT NOT NULL,"
                  "password TEXT NOT NULL)")
     print("user table created successfully")
-    conn.close()
 
 
 def fetch_users():
@@ -165,13 +165,14 @@ def view_profile(user_id):
 
 
 @app.route('/create-products', methods=["POST"])
+@jwt_required()
 def create_products():
     response = {}
 
     if request.method == "POST":
         name = request.form['name']
         price = request.form['price']
-        desc = request.form['description']
+        description = request.form['description']
         product_type = request.form['type']
         quantity = request.form['quantity']
         total = int(price) * int(quantity)
@@ -185,7 +186,7 @@ def create_products():
                            "type,"
                            "quantity,"
                            "total) VALUES (?, ?, ?, ?, ?, ?)",
-                           (name, price, desc, product_type, quantity, total))
+                           (name, price, description, product_type, quantity, total))
             conn.commit()
             response["status_code"] = 201
             response["description"] = "Items created successfully"
@@ -207,6 +208,7 @@ def show_products():
 
 
 @app.route('/delete-products/<int:product_id>')
+@jwt_required()
 def delete_products(product_id):
     response = {}
     with sqlite3.connect("sales.db") as conn:
@@ -214,16 +216,17 @@ def delete_products(product_id):
         cursor.execute("DELETE FROM product WHERE id=" + str(product_id))
         conn.commit()
         response['status_code'] = 200
-        response['message'] = "Items successfully deleted"
+        response['message'] = "Item deleted"
 
     return response
 
 
 @app.route('/edit-products/<int:product_id>', methods=["PUT"])
+@jwt_required()
 def edit_products(product_id):
     response = {}
     if request.method == "PUT":
-        with sqlite3.connect("sales.db") as conn:
+        with sqlite3.connect("sales.db"):
             incoming_data = dict(request.json)
 
             put_data = {}
@@ -233,7 +236,7 @@ def edit_products(product_id):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE product SET price=? WHERE id=?", (put_data["price"], product_id))
                     conn.commit()
-                    response['message'] = "Update was successful"
+                    response['message'] = "Update complete"
                     response['status_code'] = 200
                 return response
             if incoming_data.get("quantity") is not None:
@@ -242,7 +245,7 @@ def edit_products(product_id):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE product SET quantity=? WHERE id=?", (put_data["quantity"], product_id))
                     conn.commit()
-                    response['message'] = "Update was successful"
+                    response['message'] = "Update complete"
                     response['status_code'] = 200
 
                 return response
@@ -255,7 +258,7 @@ def edit_products(product_id):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE product SET total WHERE id=?", (new_total, product_id))
                     response['status_code'] = 200
-                    response['message'] = "Update was successful"
+                    response['message'] = "Update complete"
                 return response
 
 
